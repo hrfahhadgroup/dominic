@@ -74,7 +74,8 @@
   var $ = function(id){ return document.getElementById(id); };
   var chat=$('chat'), input=$('input'), mic=$('mic'), orb=$('orb'), statusEl=$('status'), player=$('player');
   function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){ return null; } }
-  var cfg = { url: ls('dom_url')||'', code: ls('dom_code')||'' };
+  var DEFAULT_URL='https://script.google.com/macros/s/AKfycbwCedKcivEVH1bYWN2P3w6ByYbjQcod9nedI7cXBIv1QUZU35H_89GoYIoV3HaIei5y/exec';
+  var cfg = { url: ls('dom_url')||DEFAULT_URL, code: ls('dom_code')||'' };
   var voiceOn = ls('dom_voice') !== '0';
   var history = [];
   try { history = JSON.parse(ls('dom_hist')||'[]'); } catch(e){ history = []; }
