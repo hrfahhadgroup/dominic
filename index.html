@@ -45,7 +45,7 @@
 <body>
 <header>
   <div class="orb" id="orb"></div>
-  <div><h1>دومينيك</h1><small id="status">جاهز يا فندم</small></div>
+  <div><h1>دومينيك</h1><small id="status">جاهز</small></div>
   <div class="sp"></div>
   <button class="icon" id="voiceBtn" title="الصوت">🔊</button>
   <button class="icon" id="newBtn" title="محادثة جديدة">🗑️</button>
@@ -94,7 +94,7 @@
     chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
   }
   function addErr(t){ var d=document.createElement('div'); d.className='err'; d.textContent=t; chat.appendChild(d); chat.scrollTop=chat.scrollHeight; }
-  function greet(){ add('model','أهلًا يا فندم، دومينيك معاك. تحب أساعدك في إيه النهارده؟'); }
+  function greet(){ add('model','أهلًا يا محمد، دومينيك معاك. تحب أساعدك في إيه النهارده؟'); }
 
   history.forEach(function(h){ add(h.role,h.text); });
   if(!history.length) greet();
@@ -132,9 +132,9 @@
       if(!r.ok) throw new Error(r.error);
       var m=/rate=(\d+)/.exec(r.mime||''); var src = /wav|mp3|mpeg|ogg/.test(r.mime||'') ? ('data:'+r.mime+';base64,'+r.audio) : pcmToWav(r.audio, m?+m[1]:24000);
       player.src=src; setStatus('بيتكلم...',true);
-      player.onended=function(){ setStatus('جاهز يا فندم'); };
+      player.onended=function(){ setStatus('جاهز'); };
       return player.play();
-    }).catch(function(){ setStatus('جاهز يا فندم'); browserSpeak(text); });
+    }).catch(function(){ setStatus('جاهز'); browserSpeak(text); });
   }
 
   var sending=false;
@@ -146,8 +146,8 @@
     post({message:text,history:history}).then(function(r){
       if(!r.ok){ throw new Error(r.error==='wrong_code'?'كلمة السر غلط — افتح الإعدادات ⚙️':r.error); }
       history.push({role:'user',text:text},{role:'model',text:r.reply}); history=history.slice(-20); ls('dom_hist',JSON.stringify(history));
-      add('model',r.reply); setStatus('جاهز يا فندم'); speak(r.reply);
-    }).catch(function(e){ setStatus('جاهز يا فندم'); addErr('حصلت مشكلة: '+(e.message||e)); })
+      add('model',r.reply); setStatus('جاهز'); speak(r.reply);
+    }).catch(function(e){ setStatus('جاهز'); addErr('حصلت مشكلة: '+(e.message||e)); })
       .then(function(){ sending=false; });
   }
   $('send').onclick=function(){ send(input.value); };
@@ -166,7 +166,7 @@
       var finalText='';
       rec.onresult=function(e){ var t=''; for(var i=0;i<e.results.length;i++){ t+=e.results[i][0].transcript; } input.value=t; autosize(); if(e.results[e.results.length-1].isFinal) finalText=t; };
       rec.onerror=function(e){ if(e.error==='not-allowed') addErr('لازم تسمح للمايك من إعدادات المتصفح.'); };
-      rec.onend=function(){ listening=false; mic.classList.remove('on'); setStatus('جاهز يا فندم'); if((finalText||input.value).trim()) send(finalText||input.value); };
+      rec.onend=function(){ listening=false; mic.classList.remove('on'); setStatus('جاهز'); if((finalText||input.value).trim()) send(finalText||input.value); };
       listening=true; mic.classList.add('on'); setStatus('سامعك...',true); rec.start();
     };
   }
