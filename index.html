@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>دومينيك</title>
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dominic">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root{--bg:#0b1220;--panel:#121b2e;--me:#1f6feb;--him:#1a2540;--txt:#e8eefc;--muted:#8a9bbd;--accent:#38bdf8;--danger:#ef4444}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+  body{display:flex;flex-direction:column;height:100dvh}
+  header{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;background:var(--panel);border-bottom:1px solid #22304f}
+  .orb{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#7dd3fc,#1d4ed8 60%,#0b1220);box-shadow:0 0 14px #38bdf8aa;flex:none}
+  .orb.busy{animation:pulse 1s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 28px #38bdf8;transform:scale(1.06)}}
+  header h1{font-size:18px;margin:0}
+  header small{display:block;color:var(--muted);font-size:12px}
+  header .sp{flex:1}
+  .icon{background:none;border:1px solid #2a3a5e;color:var(--txt);border-radius:10px;padding:8px 10px;font-size:16px;cursor:pointer}
+  main{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:85%;padding:10px 14px;border-radius:16px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;font-size:16px}
+  .me{align-self:flex-start;background:var(--me);border-bottom-right-radius:4px}
+  .him{align-self:flex-end;background:var(--him);border-bottom-left-radius:4px}
+  .him .play{display:inline-block;margin-top:6px;font-size:13px;color:var(--accent);cursor:pointer;background:none;border:none;padding:0}
+  .err{align-self:center;color:#fca5a5;font-size:14px;text-align:center}
+  footer{display:flex;gap:8px;align-items:flex-end;padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);background:var(--panel);border-top:1px solid #22304f}
+  textarea{flex:1;resize:none;max-height:120px;min-height:46px;padding:12px 14px;border-radius:22px;border:1px solid #2a3a5e;background:#0e1628;color:var(--txt);font-size:16px;font-family:inherit}
+  .round{width:46px;height:46px;border-radius:50%;border:none;font-size:20px;cursor:pointer;flex:none;color:#fff}
+  #mic{background:#334155}
+  #mic.on{background:var(--danger);animation:pulse 1s infinite}
+  #send{background:var(--me)}
+  #setup{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;gap:12px;padding:calc(env(safe-area-inset-top) + 24px) 20px 20px;overflow:auto}
+  #setup.show{display:flex}
+  #setup label{font-size:14px;color:var(--muted)}
+  #setup input{padding:12px;border-radius:12px;border:1px solid #2a3a5e;background:#0e1628;color:var(--txt);font-size:16px;direction:ltr}
+  #setup button{padding:14px;border-radius:12px;border:none;background:var(--me);color:#fff;font-size:16px}
+</style>
+</head>
+<body>
+<header>
+  <div class="orb" id="orb"></div>
+  <div><h1>دومينيك</h1><small id="status">جاهز يا فندم</small></div>
+  <div class="sp"></div>
+  <button class="icon" id="voiceBtn" title="الصوت">🔊</button>
+  <button class="icon" id="newBtn" title="محادثة جديدة">🗑️</button>
+  <button class="icon" id="setBtn" title="الإعدادات">⚙️</button>
+</header>
+<main id="chat"></main>
+<footer>
+  <button class="round" id="mic" title="اتكلم">🎤</button>
+  <textarea id="input" rows="1" placeholder="اكتب لدومينيك..."></textarea>
+  <button class="round" id="send" title="ابعت">➤</button>
+</footer>
+
+<div id="setup">
+  <h2 style="margin:0">إعداد دومينيك</h2>
+  <label>رابط المخ (Apps Script URL)</label>
+  <input id="urlIn" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+  <label>كلمة السر</label>
+  <input id="codeIn" type="password" autocomplete="off">
+  <button id="saveBtn">حفظ</button>
+  <small style="color:var(--muted)">البيانات دي بتتحفظ على الجهاز ده بس.</small>
+</div>
+
+<audio id="player" playsinline></audio>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var chat=$('chat'), input=$('input'), mic=$('mic'), orb=$('orb'), statusEl=$('status'), player=$('player');
+  function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){ return null; } }
+  var cfg = { url: ls('dom_url')||'', code: ls('dom_code')||'' };
+  var voiceOn = ls('dom_voice') !== '0';
+  var history = [];
+  try { history = JSON.parse(ls('dom_hist')||'[]'); } catch(e){ history = []; }
+
+  function setStatus(t,busy){ statusEl.textContent=t; orb.classList.toggle('busy',!!busy); }
+  function showSetup(){ $('urlIn').value=cfg.url; $('codeIn').value=cfg.code; $('setup').classList.add('show'); }
+  $('saveBtn').onclick=function(){ cfg.url=$('urlIn').value.trim(); cfg.code=$('codeIn').value.trim(); ls('dom_url',cfg.url); ls('dom_code',cfg.code); $('setup').classList.remove('show'); };
+  $('setBtn').onclick=showSetup;
+  $('newBtn').onclick=function(){ history=[]; ls('dom_hist','[]'); chat.innerHTML=''; greet(); };
+  function paintVoice(){ $('voiceBtn').textContent = voiceOn ? '🔊' : '🔇'; }
+  $('voiceBtn').onclick=function(){ voiceOn=!voiceOn; ls('dom_voice', voiceOn?'1':'0'); paintVoice(); if(!voiceOn){ player.pause(); speechSynthesis && speechSynthesis.cancel(); } };
+  paintVoice();
+
+  function add(role, text){
+    var d=document.createElement('div'); d.className='msg '+(role==='user'?'me':'him'); d.textContent=text;
+    if(role==='model'){ var b=document.createElement('button'); b.className='play'; b.textContent='▶︎ اسمع'; b.onclick=function(){ speak(text,true); }; d.appendChild(document.createElement('br')); d.appendChild(b); }
+    chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
+  }
+  function addErr(t){ var d=document.createElement('div'); d.className='err'; d.textContent=t; chat.appendChild(d); chat.scrollTop=chat.scrollHeight; }
+  function greet(){ add('model','أهلًا يا فندم، دومينيك معاك. تحب أساعدك في إيه النهارده؟'); }
+
+  history.forEach(function(h){ add(h.role,h.text); });
+  if(!history.length) greet();
+  if(!cfg.url || !cfg.code) showSetup();
+
+  // unlock audio on first gesture (iPhone)
+  var unlocked=false;
+  function unlock(){ if(unlocked) return; unlocked=true; try{ player.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA='; var p=player.play(); if(p&&p.catch)p.catch(function(){}); }catch(e){} }
+  document.addEventListener('touchstart',unlock,{once:true}); document.addEventListener('click',unlock,{once:true});
+
+  function post(body){
+    body.code=cfg.code;
+    return fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(r){ return r.json(); });
+  }
+
+  function pcmToWav(b64, rate){
+    var bin=atob(b64), len=bin.length, buf=new ArrayBuffer(44+len), v=new DataView(buf);
+    function s(o,str){ for(var i=0;i<str.length;i++) v.setUint8(o+i,str.charCodeAt(i)); }
+    s(0,'RIFF'); v.setUint32(4,36+len,true); s(8,'WAVE'); s(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); s(36,'data'); v.setUint32(40,len,true);
+    var u=new Uint8Array(buf,44); for(var i=0;i<len;i++) u[i]=bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+  }
+  function browserSpeak(text){
+    if(!window.speechSynthesis) return;
+    var u=new SpeechSynthesisUtterance(text); u.lang='ar-EG';
+    var vs=speechSynthesis.getVoices().filter(function(x){ return /^ar/i.test(x.lang); });
+    var eg=vs.filter(function(x){ return /EG/i.test(x.lang); })[0]; if(eg||vs[0]) u.voice=eg||vs[0];
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }
+  function speak(text, force){
+    if(!voiceOn && !force) return;
+    setStatus('بيجهز الصوت...',true);
+    post({action:'tts',text:text}).then(function(r){
+      if(!r.ok) throw new Error(r.error);
+      var m=/rate=(\d+)/.exec(r.mime||''); var src = /wav|mp3|mpeg|ogg/.test(r.mime||'') ? ('data:'+r.mime+';base64,'+r.audio) : pcmToWav(r.audio, m?+m[1]:24000);
+      player.src=src; setStatus('بيتكلم...',true);
+      player.onended=function(){ setStatus('جاهز يا فندم'); };
+      return player.play();
+    }).catch(function(){ setStatus('جاهز يا فندم'); browserSpeak(text); });
+  }
+
+  var sending=false;
+  function send(text){
+    text=(text||'').trim(); if(!text||sending) return;
+    if(!cfg.url||!cfg.code){ showSetup(); return; }
+    sending=true; input.value=''; autosize();
+    add('user',text); setStatus('بيفكر...',true);
+    post({message:text,history:history}).then(function(r){
+      if(!r.ok){ throw new Error(r.error==='wrong_code'?'كلمة السر غلط — افتح الإعدادات ⚙️':r.error); }
+      history.push({role:'user',text:text},{role:'model',text:r.reply}); history=history.slice(-20); ls('dom_hist',JSON.stringify(history));
+      add('model',r.reply); setStatus('جاهز يا فندم'); speak(r.reply);
+    }).catch(function(e){ setStatus('جاهز يا فندم'); addErr('حصلت مشكلة: '+(e.message||e)); })
+      .then(function(){ sending=false; });
+  }
+  $('send').onclick=function(){ send(input.value); };
+  input.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(input.value); } });
+  function autosize(){ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,120)+'px'; }
+  input.addEventListener('input',autosize);
+
+  // voice input
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition, rec=null, listening=false;
+  if(!SR){ mic.onclick=function(){ addErr('المتصفح ده مش بيدعم المايك. جرب Chrome أو Safari.'); }; }
+  else {
+    mic.onclick=function(){
+      if(listening){ rec&&rec.stop(); return; }
+      player.pause(); window.speechSynthesis&&speechSynthesis.cancel();
+      rec=new SR(); rec.lang='ar-EG'; rec.interimResults=true; rec.continuous=false;
+      var finalText='';
+      rec.onresult=function(e){ var t=''; for(var i=0;i<e.results.length;i++){ t+=e.results[i][0].transcript; } input.value=t; autosize(); if(e.results[e.results.length-1].isFinal) finalText=t; };
+      rec.onerror=function(e){ if(e.error==='not-allowed') addErr('لازم تسمح للمايك من إعدادات المتصفح.'); };
+      rec.onend=function(){ listening=false; mic.classList.remove('on'); setStatus('جاهز يا فندم'); if((finalText||input.value).trim()) send(finalText||input.value); };
+      listening=true; mic.classList.add('on'); setStatus('سامعك...',true); rec.start();
+    };
+  }
+})();
+</script>
+</body>
+</html>
